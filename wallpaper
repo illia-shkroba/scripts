@@ -1,0 +1,86 @@
+#!/usr/bin/env sh
+
+WALLPAPERS_DIR="$XDG_DATA_HOME/wallpapers/"
+
+main() {
+  if [ "$#" -eq 0 ]; then
+    pick
+    exit
+  fi
+
+  case "$1" in
+    '-p' | '--pick')
+      pick
+      ;;
+    '-r' | '--random')
+      random
+      ;;
+    '-h' | '--help')
+      help
+      ;;
+  esac
+}
+
+pick() {
+  wallpapers="$(get_available_wallpapers)"
+
+  wallpapers_count="$(echo "$wallpapers" | wc -l)"
+  [ "$wallpapers_count" -gt 0 ] || exit 1
+
+  chosen_wallpaper="$(echo "$wallpapers" | sxiv -ito | head -1)"
+  [ -n "$chosen_wallpaper" ] || exit 1
+
+  set_wallpaper "$chosen_wallpaper"
+}
+
+random() {
+  wallpapers="$(get_available_wallpapers)"
+  current_wallpaper="$(get_current_wallpaper)"
+
+  wallpapers_count="$(echo "$wallpapers" | wc -l)"
+  [ "$wallpapers_count" -gt 0 ] || [ "$current_wallpaper" != "wallpapers" ] || exit 1
+
+  set_wallpaper "$(get_different_random_wallpaper "$wallpapers" "$current_wallpaper")"
+}
+
+get_available_wallpapers() {
+  if ! [ -d "$WALLPAPERS_DIR" ]; then
+    echo "$WALLPAPERS_DIR is not a directory." >&2
+    exit 1
+  fi
+
+  find "$WALLPAPERS_DIR" -type f -regex '.*\.\(png\|jpg\|jpeg\)'
+}
+
+set_wallpaper() {
+  feh --bg-scale "$1"
+}
+
+get_current_wallpaper() {
+  quoted_path="$(tail -1 < "$HOME/.fehbg" | rev | sed 's/^[[:space:]]*//' | cut -d ' ' -f 1 | rev)"
+  echo "$quoted_path" | cut -c 2- | rev | cut -c 2- | rev
+}
+
+get_different_random_wallpaper() {
+  wallpapers="$1"
+  current_wallpaper="$2"
+
+  random_wallpaper="$(echo "$wallpapers" | shuf -n 1)"
+  while [ "$random_wallpaper" = "$current_wallpaper" ]; do
+    random_wallpaper="$(echo "$wallpapers" | shuf -n 1)"
+  done
+
+  echo "$random_wallpaper"
+}
+
+help() {
+  cat >&2 << 'EOF'
+Usage: weather [OPTIONS]
+
+Options:
+  -r, --random  Set random wallpaper.
+  -h, --help    Show this message and exit.
+EOF
+}
+
+main "$@"
