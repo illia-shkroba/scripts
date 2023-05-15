@@ -1,0 +1,1 @@
+setxkbmap -option 'grp:rctrl_toggle' -layout us,pl,ru
