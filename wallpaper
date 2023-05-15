@@ -34,13 +34,12 @@ pick() {
 }
 
 random() {
-  wallpapers="$(get_available_wallpapers)"
-  current_wallpaper="$(get_current_wallpaper)"
+  wallpapers="$(echo "$(get_available_wallpapers)" | grep -vx "$(get_current_wallpaper)")"
 
   wallpapers_count="$(echo "$wallpapers" | wc -l)"
-  [ "$wallpapers_count" -gt 0 ] || [ "$current_wallpaper" != "wallpapers" ] || exit 1
+  [ "$wallpapers_count" -gt 0 ] || exit 1
 
-  set_wallpaper "$(get_different_random_wallpaper "$wallpapers" "$current_wallpaper")"
+  set_wallpaper "$(echo "$wallpapers" | shuf -n 1)"
 }
 
 get_available_wallpapers() {
@@ -59,18 +58,6 @@ set_wallpaper() {
 get_current_wallpaper() {
   quoted_path="$(tail -1 < "$HOME/.fehbg" | rev | sed 's/^[[:space:]]*//' | cut -d ' ' -f 1 | rev)"
   echo "$quoted_path" | cut -c 2- | rev | cut -c 2- | rev
-}
-
-get_different_random_wallpaper() {
-  wallpapers="$1"
-  current_wallpaper="$2"
-
-  random_wallpaper="$(echo "$wallpapers" | shuf -n 1)"
-  while [ "$random_wallpaper" = "$current_wallpaper" ]; do
-    random_wallpaper="$(echo "$wallpapers" | shuf -n 1)"
-  done
-
-  echo "$random_wallpaper"
 }
 
 help() {
