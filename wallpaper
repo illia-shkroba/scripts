@@ -27,7 +27,7 @@ pick() {
   wallpapers_count="$(echo "$wallpapers" | wc -l)"
   [ "$wallpapers_count" -gt 0 ] || exit 1
 
-  chosen_wallpaper="$(echo "$wallpapers" | sxiv -ito | head -1)"
+  chosen_wallpaper="$(echo "$wallpapers" | nsxiv -ito | head -1)"
   [ -n "$chosen_wallpaper" ] || exit 1
 
   set_wallpaper "$chosen_wallpaper"
