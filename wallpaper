@@ -48,7 +48,7 @@ get_available_wallpapers() {
     exit 1
   fi
 
-  find "$WALLPAPERS_DIR" -type f -regex '.*\.\(png\|jpg\|jpeg\)'
+  find -L "$WALLPAPERS_DIR" -type f -regex '.*\.\(png\|jpg\|jpeg\)'
 }
 
 set_wallpaper() {
