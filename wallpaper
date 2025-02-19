@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-set -euo pipefail
+set -eu
 
 WALLPAPERS_DIR="$XDG_DATA_HOME/wallpapers/"
 
@@ -12,7 +12,7 @@ main() {
 
   case "$1" in
     '-l' | '--load')
-      feh --no-fehbg --bg-scale "$WALLPAPERS_DIR/current"
+      set_wallpaper "$WALLPAPERS_DIR/current"
       ;;
     '-p' | '--pick')
       pick
@@ -28,23 +28,26 @@ main() {
 
 pick() {
   wallpapers="$(get_available_wallpapers)"
-
-  wallpapers_count="$(echo "$wallpapers" | wc -l)"
-  [ "$wallpapers_count" -gt 0 ] || exit 1
+  if [ -z "$wallpapers" ]; then
+    exit 1
+  fi
 
   chosen_wallpaper="$(echo "$wallpapers" | nsxiv -ito | head -1)"
-  [ -n "$chosen_wallpaper" ] || exit 1
+  if [ -z "$chosen_wallpaper" ]; then
+    exit 1
+  fi
 
-  set_wallpaper "$chosen_wallpaper"
+  set_current_wallpaper "$chosen_wallpaper"
 }
 
 random() {
-  wallpapers="$(echo "$(get_available_wallpapers)" | grep -vx "$(get_current_wallpaper)")"
+  wallpapers="$(get_available_wallpapers | grep -vx "$(get_current_wallpaper)")"
+  if [ -z "$wallpapers" ]; then
+    exit 1
+  fi
 
-  wallpapers_count="$(echo "$wallpapers" | wc -l)"
-  [ "$wallpapers_count" -gt 0 ] || exit 1
-
-  set_wallpaper "$(echo "$wallpapers" | shuf -n 1)"
+  chosen_wallpaper="$(echo "$wallpapers" | shuf -n 1)"
+  set_current_wallpaper "$chosen_wallpaper"
 }
 
 get_available_wallpapers() {
@@ -56,9 +59,13 @@ get_available_wallpapers() {
   find -L "$WALLPAPERS_DIR" -type f -iregex '.*\.\(png\|jpg\|jpeg\)'
 }
 
+set_current_wallpaper() {
+  set_wallpaper "$1"
+  ln -sf "$1" "$WALLPAPERS_DIR/current"
+}
+
 set_wallpaper() {
   feh --no-fehbg --bg-scale "$1"
-  ln -sf "$1" "$WALLPAPERS_DIR/current"
 }
 
 get_current_wallpaper() {
@@ -67,7 +74,7 @@ get_current_wallpaper() {
 
 help() {
   cat >&2 << 'EOF'
-Usage: weather [OPTIONS]
+Usage: wallpaper [OPTIONS]
 
 Options:
   -l, --load    Set most recent wallpaper $XDG_DATA_HOME/wallpapers/current.
