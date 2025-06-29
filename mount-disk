@@ -1,0 +1,105 @@
+#!/usr/bin/env sh
+
+set -eu
+
+main() {
+  if [ "$#" -eq 0 ]; then
+    help
+    exit
+  fi
+
+  root=''
+  type=''
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      '-t' | '--type')
+        if ! [ "$#" -gt 1 ]; then
+          echo 'Missing value for --type' >&2
+          exit 1
+        fi
+        type="$2"
+        shift 2
+        ;;
+      '-h' | '--help')
+        help
+        exit
+        ;;
+      '--')
+        if ! [ "$#" -eq 2 ]; then
+          echo 'Expected exactly single ROOT' >&2
+          exit 1
+        fi
+        root="$2"
+        break
+        ;;
+      *)
+        if ! [ "$#" -eq 1 ]; then
+          echo 'Expected exactly single ROOT' >&2
+          exit 1
+        fi
+        root="$1"
+        break
+        ;;
+    esac
+  done
+
+  if [ -z "$root" ]; then
+    echo 'ROOT argument is required.' >&2
+    exit 1
+  fi
+
+  disk_output="$(lsblk --nodeps --output=serial,path --noheadings | fzf --prompt 'Pick a disk> ' | tr -s ' ')"
+  disk_name="$(echo "$disk_output" | cut -d ' ' -f 1)"
+  disk_path="$(echo "$disk_output" | cut -d ' ' -f 2)"
+
+  partitions="$(lsblk --output=partn,path,fstype --noheadings "$disk_path" \
+    |
+    # Filter partitions by checking partitions numbers. (Disks have no partitions numbers)
+    grep '^[[:space:]]\+[[:digit:]]' \
+    |
+    # Remove partitions numbers used for filtering.
+    sed 's/^[[:space:]]\+[[:digit:]]\+[[:space:]]\+//')"
+
+  if [ -z "$partitions" ]; then
+    echo 'The disk "'"$disk_name"'" has no partitions. Only partitions can be mounted.' >&2
+    exit 1
+  fi
+
+  partition_path="$(echo "$partitions" | fzf --prompt 'Pick a partition> ' --accept-nth=1)"
+
+  if [ -z "$type" ]; then
+    echo 'No --type provided. Treating the disk "'"$disk_name"'" as unencrypted.' >&2
+    echo 'Mounting the disk at "'"$root/$disk_name"'"...' >&2
+    sudo mkdir -p "$root/$disk_name"
+    sudo mount "$partition_path" "$root/$disk_name"
+  else
+    echo '--type "'"$type"'" provided. Treating the disk "'"$disk_name"'" as encrypted.' >&2
+    echo 'Opening the disk...' >&2
+    pass disk/"$disk_name" | sudo cryptsetup open "$partition_path" "$disk_name"
+    echo 'Mounting the disk with "'"$type"'" at "'"$root/$disk_name"'"...' >&2
+    sudo mkdir -p "$root/$disk_name"
+    sudo mount -t "$type" /dev/mapper/"$disk_name" "$root/$disk_name"
+  fi
+
+  exit 0
+}
+
+help() {
+  cat >&2 << 'EOF'
+mount-disk - pick a disk with `fzf` to open & mount
+
+Usage: mount-disk [-t|--type FSTYPE] [-h|--help] ROOT
+
+  Pick a disk and partition with `fzf` to open it (if encrypted) and mount it
+  under ROOT. A disk's serial number DISK_SERIAL_NUMBER is used as a mount
+  directory name under ROOT. A password for accessing an encrypted disk will be
+  read with `pass disk/DISK_SERIAL_NUMBER`.
+
+Available options:
+  -t,--type FSTYPE         Treat the disk as encrypted, open it for access and mount it with FSTYPE (as in `mount -t`).
+  -h,--help                Show this help text
+EOF
+}
+
+main "$@"

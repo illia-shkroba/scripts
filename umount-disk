@@ -1,0 +1,79 @@
+#!/usr/bin/env sh
+
+set -eu
+
+main() {
+  if [ "$#" -eq 0 ]; then
+    help
+    exit
+  fi
+
+  root=''
+  close=''
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      '-c' | '--close')
+        close='y'
+        shift 1
+        ;;
+      '-h' | '--help')
+        help
+        exit
+        ;;
+      '--')
+        if ! [ "$#" -eq 2 ]; then
+          echo 'Expected exactly single ROOT' >&2
+          exit 1
+        fi
+        root="$2"
+        break
+        ;;
+      *)
+        if ! [ "$#" -eq 1 ]; then
+          echo 'Expected exactly single ROOT' >&2
+          exit 1
+        fi
+        root="$1"
+        break
+        ;;
+    esac
+  done
+
+  if [ -z "$root" ]; then
+    echo 'ROOT argument is required.' >&2
+    exit 1
+  fi
+
+  disk_output="$(lsblk --nodeps --output=serial,path --noheadings | fzf --prompt 'Pick a disk> ' | tr -s ' ')"
+  disk_name="$(echo "$disk_output" | cut -d ' ' -f 1)"
+
+  echo 'Unmounting the disk from "'"$root/$disk_name"'"...' >&2
+  sudo umount "$root/$disk_name"
+  sudo rm -rf "$root/$disk_name"
+
+  if [ -n "$close" ]; then
+    echo 'Closing the disk...' >&2
+    sudo cryptsetup close "$disk_name"
+  fi
+
+  exit 0
+}
+
+help() {
+  cat >&2 << 'EOF'
+umount-disk - pick a disk with `fzf` to unmount & close
+
+Usage: umount-disk [-c|--close] [-h|--help] ROOT
+
+  Pick a disk with `fzf` to unmount it from ROOT and close (if requested).
+  A disk's serial number DISK_SERIAL_NUMBER is used as a directory name to
+  unmount under ROOT.
+
+Available options:
+  -c,--close               Treat the disk as encrypted and close it after unmounting.
+  -h,--help                Show this help text
+EOF
+}
+
+main "$@"
