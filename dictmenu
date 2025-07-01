@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -eu -o pipefail
+
+selection="$(sed '/^$/d' "$XDG_DATA_HOME/dict.txt" | fzfmenu --ansi --highlight-line --prompt "dict> " --wrap --wrap-sign " ↳ " | tr -d "\n")"
+
+if [ -z "$selection" ]; then
+  exit
+fi
+
+for selection_type in clipboard primary; do
+  echo -n "$selection" | xsel --logfile /dev/null -i --"$selection_type"
+done
