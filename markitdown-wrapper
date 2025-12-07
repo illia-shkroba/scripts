@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -eu
+
+output=$(mktemp)
+trap "rm -rf -- $output" EXIT
+
+# stdout read from `markitdown` fails with "broken pipe" error.
+markitdown "$@" 2> /dev/null > "$output"
+cat "$output"
