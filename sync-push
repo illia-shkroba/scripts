@@ -2,32 +2,85 @@
 
 set -eu
 
-disk="$(find /mnt/ -mindepth 1 -maxdepth 1 -type d | fzf --prompt 'Pick a disk> ' | tr -s ' ')"
+main() {
+  if [ "$#" -eq 0 ]; then
+    help
+    exit
+  fi
 
-paths=(
-  '.ssh'
-  '.local/share/dict.txt'
-  '.local/share/gnupg'
-  '.local/share/pfile'
-  'documents'
-  'notes'
-  'projects'
-  'science'
-  'tools'
-)
-common_options=(
-  '-aRv'
-  '--update'
-  '--delete'
-  '--exclude' '.mypy_cache'
-  '--exclude' '.venv'
-  '--exclude' 'venv'
-  '--exclude' '__pycache__'
-  '--exclude' '.stack-work'
-)
+  dest=''
 
-mkdir -p "$disk/sync"
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      '-h' | '--help')
+        help
+        exit
+        ;;
+      '--')
+        if ! [ "$#" -eq 2 ]; then
+          echo 'Expected exactly single DEST' >&2
+          exit 1
+        fi
+        dest="$2"
+        break
+        ;;
+      *)
+        if ! [ "$#" -eq 1 ]; then
+          echo 'Expected exactly single DEST' >&2
+          exit 1
+        fi
+        dest="$1"
+        break
+        ;;
+    esac
+  done
 
-for path in "${paths[@]}"; do
-  rsync "${common_options[@]}" "$HOME/$path" "$disk/sync"
-done
+  if [ -z "$dest" ]; then
+    echo 'DEST argument is required.' >&2
+    exit 1
+  fi
+
+  paths=(
+    '.ssh'
+    '.local/share/dict.txt'
+    '.local/share/gnupg'
+    '.local/share/pfile'
+    'documents'
+    'notes'
+    'projects'
+    'science'
+    'tools'
+  )
+  common_options=(
+    '-aRv'
+    '--update'
+    '--mkpath'
+    '--delete'
+    '--exclude' '.mypy_cache'
+    '--exclude' '.venv'
+    '--exclude' 'venv'
+    '--exclude' '__pycache__'
+    '--exclude' '.stack-work'
+  )
+
+  for path in "${paths[@]}"; do
+    rsync "${common_options[@]}" "$HOME/$path" "$dest"
+  done
+
+  exit 0
+}
+
+help() {
+  cat >&2 << 'EOF'
+sync-push - copy predefined directories to DEST
+
+Usage: sync-push [-h|--help] DEST
+
+  Copy predefined directories to DEST with `rsync`.
+
+Available options:
+  -h,--help                Show this help text
+EOF
+}
+
+main "$@"
