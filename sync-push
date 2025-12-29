@@ -55,6 +55,7 @@ main() {
     '-aRv'
     '--update'
     '--mkpath'
+    '--omit-dir-times'
     '--delete'
     '--exclude' '.mypy_cache'
     '--exclude' '.venv'
