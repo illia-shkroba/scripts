@@ -53,6 +53,7 @@ main() {
   )
   common_options=(
     '-aRv'
+    '--info=progress2'
     '--update'
     '--mkpath'
     '--omit-dir-times'
