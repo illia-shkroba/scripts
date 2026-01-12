@@ -9,12 +9,17 @@ main() {
   fi
 
   local dest=''
+  local common_options=()
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
       '-h' | '--help')
         help
         exit
+        ;;
+      '-u' | '--update')
+        common_options+=('--update')
+        shift
         ;;
       '--')
         if ! [ "$#" -eq 2 ]; then
@@ -65,11 +70,9 @@ main() {
     'science'
     'tools'
   )
-  local common_options
-  common_options=(
+  common_options+=(
     '-aRv'
     '--info=progress2'
-    '--update'
     '--mkpath'
     '--omit-dir-times'
     '--delete'
@@ -97,6 +100,7 @@ Usage: sync-push [-h|--help] DEST
 
 Available options:
   -h,--help                Show this help text
+  -u,--update              Pass `--update` to `rsync`
 EOF
 }
 
