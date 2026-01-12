@@ -8,7 +8,7 @@ main() {
     exit
   fi
 
-  dest=''
+  local dest=''
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -40,6 +40,20 @@ main() {
     exit 1
   fi
 
+  local local_profile
+  local_profile=$(basename "$(realpath -e "$XDG_DATA_HOME/pfile/current")")
+
+  local remote_profile
+  remote_profile=$(basename "$(ssh "${dest%%:*}" realpath -e .local/share/pfile/current)")
+
+  if ! [ "$local_profile" = "$remote_profile" ]; then
+    echo -n 'Refuse to sync because local profile ('"$local_profile"')' >&2
+    echo -n ' doesn'\''t match remote profile ('"$remote_profile"').' >&2
+    echo >&2
+    exit 1
+  fi
+
+  local paths
   paths=(
     '.ssh'
     '.local/share/dict.txt'
@@ -51,6 +65,7 @@ main() {
     'science'
     'tools'
   )
+  local common_options
   common_options=(
     '-aRv'
     '--info=progress2'
