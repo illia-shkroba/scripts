@@ -58,12 +58,20 @@ main() {
     exit 1
   fi
 
+  # Dump call to the `sync-push`.
+  local sync_date
+  sync_date=$(date +'%s')
+
+  jq --null-input '.date = "'"$sync_date"'" | .dest = "'"$dest"'"' > "$HOME/.local/share/sync-push.json"
+
+  # `rsync` paths to `dest`
   local paths
   paths=(
-    '.ssh'
+    '.local/share/sync-push.json'
     '.local/share/dict.txt'
     '.local/share/gnupg'
     '.local/share/pfile'
+    '.ssh'
     'documents'
     'notes'
     'projects'
