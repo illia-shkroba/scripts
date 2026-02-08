@@ -17,6 +17,10 @@ main() {
         help
         exit
         ;;
+      '-d' | '--delete')
+        common_options+=('--delete')
+        shift
+        ;;
       '-u' | '--update')
         common_options+=('--update')
         shift
@@ -83,7 +87,6 @@ main() {
     '--info=progress2'
     '--mkpath'
     '--omit-dir-times'
-    '--delete'
     '--exclude' '.mypy_cache'
     '--exclude' '.venv'
     '--exclude' 'venv'
@@ -108,6 +111,7 @@ Usage: sync-push [-h|--help] DEST
 
 Available options:
   -h,--help                Show this help text
+  -d,--delete              Pass `--delete` to `rsync`
   -u,--update              Pass `--update` to `rsync`
 EOF
 }
