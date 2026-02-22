@@ -71,10 +71,11 @@ main() {
   # `rsync` paths to `dest`
   local paths
   paths=(
-    '.local/share/sync-push.json'
     '.local/share/dict.txt'
     '.local/share/gnupg'
     '.local/share/pfile'
+    '.local/share/sync-push.json'
+    '.local/share/wallpapers'
     '.ssh'
     'documents'
     'notes'
