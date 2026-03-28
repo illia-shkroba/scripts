@@ -1,0 +1,123 @@
+#!/usr/bin/env python
+
+from typing import Self
+from dataclasses import dataclass
+import sqlite3
+import os
+from pathlib import Path
+
+
+WINDOWS_EPOCH_OFFSET = 11644473600
+EPOCH_SCALE_FACTOR = 1_000_000
+
+
+@dataclass(frozen=True)
+class EntryKey:
+    url: str
+    time: int
+
+
+@dataclass(frozen=True)
+class BraveEntry:
+    url: str
+    title: str
+    last_visit_time: int
+
+    @classmethod
+    def from_db_entry(cls, raw: tuple[str, str, int]) -> Self:
+        return cls(url=raw[0], title=raw[1], last_visit_time=raw[2])
+
+    def key(self) -> EntryKey:
+        return EntryKey(
+            url=self.url,
+            time=round(self.last_visit_time / EPOCH_SCALE_FACTOR)
+            - WINDOWS_EPOCH_OFFSET,
+        )
+
+
+@dataclass(frozen=True)
+class QutebrowserEntry:
+    url: str
+    title: str
+    atime: int
+
+    @classmethod
+    def from_db_entry(cls, raw: tuple[str, str, int]) -> Self:
+        return cls(url=raw[0], title=raw[1], atime=raw[2])
+
+    def key(self) -> EntryKey:
+        return EntryKey(url=self.url, time=self.atime)
+
+
+def brave_to_qutebrowser(entry: BraveEntry) -> QutebrowserEntry:
+    return QutebrowserEntry(
+        url=entry.url,
+        title=entry.title,
+        atime=round(entry.last_visit_time / EPOCH_SCALE_FACTOR) - WINDOWS_EPOCH_OFFSET,
+    )
+
+
+def qutebrowser_to_brave(entry: QutebrowserEntry) -> BraveEntry:
+    return BraveEntry(
+        url=entry.url,
+        title=entry.title,
+        last_visit_time=(entry.atime + WINDOWS_EPOCH_OFFSET) * EPOCH_SCALE_FACTOR,
+    )
+
+
+config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+data_home = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+
+brave_history_path = (
+    config_home / "BraveSoftware" / "Brave-Browser" / "Default" / "History"
+)
+qutebrowser_history_path = data_home / "qutebrowser" / "history.sqlite"
+
+
+with (
+    sqlite3.connect(brave_history_path) as brave_connection,
+    sqlite3.connect(qutebrowser_history_path) as qutebrowser_connection,
+):
+    brave_history = {
+        entry.key(): entry
+        for entry in map(
+            BraveEntry.from_db_entry,
+            brave_connection.execute("SELECT url, title, last_visit_time FROM urls"),
+        )
+    }
+    qutebrowser_history = {
+        entry.key(): entry
+        for entry in map(
+            QutebrowserEntry.from_db_entry,
+            qutebrowser_connection.execute("SELECT url, title, atime FROM history"),
+        )
+    }
+
+    brave_history_patch = [
+        qutebrowser_to_brave(entry)
+        for key, entry in qutebrowser_history.items()
+        if key not in brave_history
+    ]
+    qutebrowser_history_patch = [
+        brave_to_qutebrowser(entry)
+        for key, entry in brave_history.items()
+        if key not in qutebrowser_history
+    ]
+
+    brave_connection.executemany(
+        "INSERT INTO urls (url, title, last_visit_time) VALUES (?, ?, ?)",
+        (
+            (entry.url, entry.title, entry.last_visit_time)
+            for entry in brave_history_patch
+        ),
+    )
+    qutebrowser_connection.executemany(
+        "INSERT INTO history (url, title, atime, redirect) VALUES (?, ?, ?, ?)",
+        (
+            (entry.url, entry.title, entry.atime, 0)
+            for entry in qutebrowser_history_patch
+        ),
+    )
+
+    brave_connection.commit()
+    qutebrowser_connection.commit()
