@@ -7,8 +7,9 @@ import os
 from pathlib import Path
 
 
-WINDOWS_EPOCH_OFFSET = 11644473600
 EPOCH_SCALE_FACTOR = 1_000_000
+LINK_TRANSITION_TYPE = 805306368
+WINDOWS_EPOCH_OFFSET = 11644473600
 
 
 @dataclass(frozen=True)
@@ -104,20 +105,17 @@ with (
         if key not in qutebrowser_history
     ]
 
-    brave_connection.executemany(
-        "INSERT INTO urls (url, title, last_visit_time) VALUES (?, ?, ?)",
-        (
-            (entry.url, entry.title, entry.last_visit_time)
-            for entry in brave_history_patch
-        ),
-    )
-    qutebrowser_connection.executemany(
-        "INSERT INTO history (url, title, atime, redirect) VALUES (?, ?, ?, ?)",
-        (
-            (entry.url, entry.title, entry.atime, 0)
-            for entry in qutebrowser_history_patch
-        ),
-    )
+    for entry in brave_history_patch:
+        cursor = brave_connection.execute(
+            "INSERT INTO urls (url, title, last_visit_time) VALUES (?, ?, ?)",
+            (entry.url, entry.title, entry.last_visit_time),
+        )
+        url_id = cursor.lastrowid
+
+        brave_connection.execute(
+            "INSERT INTO visits (url, visit_time, from_visit, transition, segment_id) VALUES (?, ?, ?, ?, ?)",
+            (url_id, entry.last_visit_time, 0, LINK_TRANSITION_TYPE, 0),
+        )
 
     brave_connection.commit()
     qutebrowser_connection.commit()
