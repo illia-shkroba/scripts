@@ -2,10 +2,27 @@
 
 set -eu -o pipefail
 
-selection="$(sed '/^$/d' "$XDG_DATA_HOME/dict.txt" | fzfmenu --ansi --highlight-line --prompt "dict> " --wrap --wrap-sign " ↳ " | tr -d "\n")"
+DICT=$XDG_DATA_HOME/dict.json
 
-if [ -z "$selection" ]; then
-  exit
+menu() {
+  fzfmenu --ansi --highlight-line --read0 --wrap --wrap-sign " ↳ " "$@"
+}
+
+topic="$(jq --raw-output0 \
+  'group_by(.topic) | map({topic: (.[0] | .topic), count: length}) | sort_by(-.count) | map(.topic) | [""] + . | .[]' \
+  "$DICT" \
+  | menu --prompt "dict topic> ")"
+
+if [ -z "$topic" ]; then
+  selection="$(jq --raw-output0 \
+    'map(.text) | .[]' \
+    "$DICT" \
+    | menu --prompt "dict text> ")"
+else
+  selection="$(jq --raw-output0 --arg 'topic' "$topic" \
+    'map(select(.topic == $topic)) | map(.text) | .[]' \
+    "$DICT" \
+    | menu --prompt "dict text> ")"
 fi
 
 for selection_type in clipboard primary; do
