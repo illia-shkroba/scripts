@@ -71,6 +71,7 @@ main() {
   # `rsync` paths to `dest`
   local paths
   paths=(
+    '.local/share/dict.json'
     '.local/share/dict.txt'
     '.local/share/gnupg'
     '.local/share/pfile'
